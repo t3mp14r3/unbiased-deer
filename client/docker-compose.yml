@@ -1,0 +1,59 @@
+version: "3.8"
+
+networks:
+  ud_client_network:
+    name: ud_client_network
+
+volumes:
+  ud_grafana_volume:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ./grafana_volume
+
+services:
+  ud_client:
+    build: .
+    image: ud_client
+    hostname: ud_client
+    container_name: ud_client
+    restart: always
+    expose:
+      - 8081
+    networks:
+      - ud_client_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  ud_prometheus:
+    image: prom/prometheus:latest
+    hostname: ud_prometheus
+    container_name: ud_prometheus
+    restart: always
+    expose:
+      - 9090
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - ud_client_network
+    links:
+      - ud_client
+
+  ud_grafana:
+    image: grafana/grafana:latest
+    hostname: ud_grafana
+    container_name: ud_grafana
+    restart: always
+    ports:
+      - 3000:3000
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - ud_grafana_volume:/var/lib/grafana
+    networks:
+      - ud_client_network
+    links:
+      - ud_prometheus
